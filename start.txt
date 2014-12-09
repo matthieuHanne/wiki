@@ -1,0 +1,29 @@
+Bienvenu sur mon wiki.
+
+====== Article achevé ======
+----
+
+  * [[PKI Microsofttest|[Fr] PKI Microsoft]]
+  * [[vba_mail_macro|[Fr] Macro Alerte VBA]]
+
+====== Article en cours de rédaction ======
+----
+
+  * [[splunk_rt4_module|[Fr]Monitor RT4 with Splunk]]
+  * [[centos_configuration|[En] CentOs configuration]]
+  * [[nginx_configuration|[En] Nginx configuration]]
+  * [[yify_pop|[En] Yify-pop configuration]]
+  * [[defensive_security|Defensive security]]
+  * [[offensive_security|Offensive security]]
+  * [[backend_development|[EN] Backend development]]
+====== ToDos ======
+----
+  * [[selfoss_paths|Selfoss configuration & customization]]
+  * [[serveur_security| Serveur security]]
+
+----
+
+  * [[todos|Todos List]]
+  * [[nes_lan|Nes lan]]
+
+

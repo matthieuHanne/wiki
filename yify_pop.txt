@@ -1,0 +1,90 @@
+ popcorn.conf
+   
+    server {
+      listen       80;
+      server_name  www.wiki.mhanne.ovh wiki.mhanne.ovh;
+      root         /usr/share/nginx/popcorn;
+   
+    proxy_intercept_errors on;
+    #charset koi8-r;
+   
+     access_log  /var/log/nginx/host.access.log  main;
+  
+     location / {
+    proxy_pass   http://127.0.0.1:4000;
+      proxy_set_header        Host             $host;
+       proxy_set_header        X-Real-IP        $remote_addr;
+       proxy_set_header        X-Forwarded-For  $proxy_add_x_forwarded_for;
+   }
+<code>
+mkdir /usr/share/nginx/popcorn
+cd /usr/share/nginx/popcorn
+git clone https://github.com/yify-pop/yify-pop.git
+geddit
+ln -s /etc/nginx/sites-available/popcorn.conf /etc/nginx/sites-enabled/
+nginx -s reload
+nginx: [emerg] location "/50x.html" cannot be inside the exact location "/40x.html" in /etc/nginx/sites-enabled/popcorn.conf:35
+</code>
+
+
+
+Demonization
+
+<code>
+!/bin/sh
+
+
+ chkconfig: 35 99 99
+ description: tiddlywiki
+
+
+. /etc/rc.d/init.d/functions
+
+USER="nginx"
+
+DAEMON="/usr/local/bin/tiddlywiki"
+PARAMS="--server"
+
+LOCK_FILE="/var/lock/subsys/tiddlywiki"
+
+do_start()
+{
+  if [ ! -f "$LOCK_FILE" ] ; then
+    echo -n $"Starting $SERVER: "
+      runuser -l "$USER" -c "$DAEMON $PARAMS &" && echo_success || echo_failure
+      RETVAL=$?
+      echo
+      [ $RETVAL -eq 0 ] && touch $LOCK_FILE
+  else
+    echo "$SERVER is locked."
+      RETVAL=1
+      fi
+}
+do_stop()
+{
+  echo -n $"Stopping $SERVER: "
+    pid=`ps -aefw | grep "$DAEMON $SERVER" | grep -v " grep " | awk '{print $2}'`
+    kill -9 $pid > /dev/null 2>&1 && echo_success || echo_failure
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $LOCK_FILE
+}
+
+case "$1" in
+start)
+do_start
+;;
+stop)
+do_stop
+;;
+restart)
+do_stop
+do_start
+;;
+*)
+echo "Usage: $0 {start|stop|restart}"
+RETVAL=1
+esac
+
+exit $RETVAL
+</code>

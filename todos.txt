@@ -1,0 +1,17 @@
+====== Todo List : ======
+ 
+  * Set up taskwarrior
+
+yum install -y task
+
+  * Popcorn yify-pop (demonization)
+  * Cron script for Backup
+  * .htaccess
+  * Ip tables
+  * Seed Box : Sickbeard + Couchpotato + Plex Media Server + Transmission + NFS + FTPS
+  * Supervision serveur (Splunk for log / ???? for supervision)
+  * OpenVPN - SSL VPN
+  * Mail Serveur
+  * Solution antispam ! Maybe spamassassin, Amavis (if no mail srv no need)
+  * Network Lab : vAppliance GNS3 | VIRL
+  * Server music library (Find out best solution)

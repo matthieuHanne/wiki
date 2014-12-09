@@ -1,0 +1,28 @@
+Scanning with lynis
+<code>
+yum install lynis
+Installing:
+ lynis                                       noarch                                   1.6.1-1.el7                                    epel                                   148 k
+Installing for dependencies:
+ audit                                       x86_64                                   2.3.3-4.el7                                    base                                   223 k
+ e2fsprogs                                   x86_64                                   1.42.9-4.el7                                   base                                   691 k
+ libss
+</code>
+
+lynis --check-update
+
+Exécuter une première fois Lynis, pour cela, rien de plus simple que la ligne de commande suivante :
+
+./Lynis -c
+L’option “-c” permet d’effectuer la totalité des vérifications contenues dans l’outil Lynis.
+
+
+/etc/php.ini
+expose_php = Off
+
+
+Enable Authentication for Single-User Mode
+Checking package audit tool
+
+
+

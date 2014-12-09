@@ -1,0 +1,39 @@
+
+FIRST STEP
+- http://nexentastor.org (Ca vaut le coup ? Ca fait quoi ?)
+
+- VM TimeMachine
+
+- VM OpenVPN - SSL VPN
+
+- VM Pfsense - FW Opensource
+
+- VM Centreon
+
+- VM Proxy Web - NGINX
+
+- VM Website (Nginx)
+          ° wiki, intranet, website vitrine
+          ° Blog in Python (markdown based page) (category,photos,comments,rss,cache,highlights,etc)
+https://wiki.python.org/moin/PythonBlogSoftware
+
+- VM Free Radius
+
+- VM Print - Server d’impression (compatible AirPrint)
+
+- Panel d’administration (en python) pour avoir accès à mon homelab à distance
+
+- VM Sickbeard + Couchpotato + Plex Media Server 
++ Transmission + NFS + FTPS
+
+- OwnCloud : (NO OVH !!!)
+
+- Sonde pour consommation electrique - lien
+
+- Firewall Applicatif sur Win 2K12 ! (Komodo it’s free)
+
+- Solution antispam ! Maybe spamassassin, Amavis (if no mail srv no need)
+
+- Network Lab : vAppliance GNS3 | VIRL
+
+- VM Server music library (Find out best solution)

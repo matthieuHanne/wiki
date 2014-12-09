@@ -1,0 +1,110 @@
+====== iptables/netfilter ======
+
+ Iptables is the userspace module, the bit that you, the user, interact with at the command line to enter firewall rules into predefined tables.
+
+Netfilter is a kernel module, built into the kernel, that actually does the filtering.
+
+Iptables places rules into predefined chains (INPUT, OUTPUT and FORWARD) that are checked against any network traffic 
+  * NPUT - All packets destined for the host computer.
+  * OUTPUT - All packets originating from the host computer.
+  * FORWARD - All packets neither destined for nor originating from the host computer, but passing through (routed by) the host computer. This chain is used if you are using your computer as a router. 
+
+
+
+Check if iptables is installed
+<code>
+$ rpm -q iptables     
+iptables-1.4.21-13.el7.x86_6
+</code>
+
+And to see if iptables is actually running :
+ lsmod | grep ip_tables
+ iptables -L
+
+If is not running, you can enable it by running: 
+system-config-securitylevel
+
+yum install system-config-firewall
+
+Let build a basic firewall script
+https://github.com/matthieuHanne/.config/blob/master/scripts/iptables
+
+service iptables save
+if you have an error about restorecon
+yum install policycoreutils
+
+
+
+
+
+
+====== Scanning with lynis======
+
+<code>
+yum install lynis
+Installing:
+ lynis                                       noarch                                   1.6.1-1.el7                                    epel                                   148 k
+Installing for dependencies:
+ audit                                       x86_64                                   2.3.3-4.el7                                    base                                   223 k
+ e2fsprogs                                   x86_64                                   1.42.9-4.el7                                   base                                   691 k
+ libss
+</code>
+
+
+
+lynis --check-update
+
+Exécuter une première fois Lynis, pour cela, rien de plus simple que la ligne de commande suivante :
+
+./Lynis -c
+L’option “-c” permet d’effectuer la totalité des vérifications contenues dans l’outil Lynis.
+
+
+/etc/php.ini
+expose_php = Off
+
+
+Enable Authentication for Single-User Mode
+Checking package audit tool
+
+====== rkHunter ======
+yum install rkhunter
+
+conf file : /etc/rkhunter.conf
+Run the scan : 
+<code>sudo rkhunter -c</code>
+
+====== Fail2ban ======
+
+<code>
+yum install fail2ban
+sudo service fail2ban start
+</code>
+
+conf in /etc/fail2ban/jail.con
+
+
+
+====== Portsentry ======
+====== Snort ======
+
+The good news is "YES, Splunk can index gzip files as is!" The bad news is, Splunk will monitor these files one at a time, instead of in parallel. Because it is not possible to predict the uncompressed size of a gzip file, Splunk processes these files in sequence for better control of disk allocation. With respect to performance, this is not ideal for handling 50k files so please consider uncompresing them before having Splunk monitor them to take advantage of Splunk's multi-threading file monitoring capabilities.
+====== Splunk ======
+
+chmod 744 splunk-6.2.0-237341-linux-2.6-x86_64.rpm
+rpm -i splunk-6.2.0-237341-linux-2.6-x86_64.rpm
+
+**TODO**
+http://docs.splunk.com/Documentation/Splunk/latest/Installation/RunSplunkasadifferentornon-rootuser
+
+===== Log supervision =====
+  * /var/log/auth.log qui contient toutes les tentatives d’accès au serveur. Il peut être utile de filtrer le contenu, par exemple : cat /var/log/auth.log | grep authentication failure ;
+  * /var/log/message et /var/log/syslog contient un peu de tout (erreurs, bugs, informations, etc) ;
+  * /var/log/fail2ban est le log d’alerte de fail2ban. Cherchez notamment : cat /var/log/fail2ban | grep ban ;
+  * /var/log/snort/alert vous indiquera les logs d’alertes de Snort ;
+  * /var/log/rkhunter pour voir les rapports quotidien de Rkhunter. Faites attention aux erreurs trouvées, ce n’est pas bon signe (même si le risque de faux positifs existe ici).
+
+
+===== Sources =====
+---
+http://wiki.centos.org/HowTos/Network/IPTables

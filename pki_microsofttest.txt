@@ -1,0 +1,389 @@
+====== Configuration d’une infrastructure à clés publiques ======
+===== Introduction =====
+
+Ce document constitue le guide de déploiement  d’une infrastructure à clés publiques. Il vous sera utile pour configurer la PKI, mais également dans son administration et son exploitation au quotidien.
+===== Architecture cible =====
+
+==== Hiérarchies d'Autorités de certification ====
+
+L'infrastructure de clé publique PKI de Microsoft prend en charge un modèle d'Autorités de certification hiérarchique. Une hiérarchie de certification offre l'évolutivité, la facilité d'administration et la cohérence avec un nombre croissant de produits commerciaux et d'autres produits d'Autorité de certification.
+
+Une hiérarchie contient généralement plusieurs Autorités de certification avec des relations parents-enfants clairement définies. Dans ce modèle, les Autorités de certification subordonnées enfants sont certifiées par les certificats émis par les Autorités de certification parentes, ce qui relie la clé publique de l'Autorité de certification à son identité. L'Autorité de certification au sommet de la hiérarchie est appelée **Autorité racine** ou **Autorité de certification racine**. Les Autorités de certification enfants des Autorités de certification racine sont appelées **Autorités de certification subordonnées**.
+
+Dans notre cas, nous allons construire une hiérarchie à deux niveaux chacun composé d'une seul Autorité. L'Autorité subordonné sera chargé de diffuser les certificats utilisés par les services de l'entreprise. Nous l'appellerons donc : **Autorité de Distribution**.
+
+L'autorité racine étant installé au moyen des services de certificats Active Directory (AD CS),(donc ayant un accès au service d'annuaire Active Directory), le certificat de l'autorité racine sera automatiquement placé dans le magasin de certificats des Autorités de certification racines de confiance de tous les utilisateurs, conférant ainsi une approbation à l'échelle de la forêt à l'Autorité de certification racine. 
+
+**/!\ Attention /!\** Une fois l'architecture mise en place, l'autorité racine doit **impérativement être éteinte**. Car, si celle-ci est corrompue, toute l'infrastructure est à réinstaller !   
+
+
+===== Prérequis =====
+==== Génération d’un Object Identifier (OID)====
+Nous aurons besoins de cet OID lors de l'initialisation des autorités.
+Pour le générer, il faut ce rendre sur l'un des sur un des Domain Controller du domaine sur lequel on souhaite ajouter notre autorité
+
+>Par exemple : VBURWDC1
+  
+Importer le script ci-dessous sur le Desktop  et exécuter la commande
+  cscript.exe oidgen.vbs
+
+https://gallery.technet.microsoft.com/scriptcenter/56b78004-40d0-41cf-b95e-6e795b2e8a06
+
+    
+Conserver le **root OID** représentant l’autorité de certification
+> Ex : 1.2.840.113556.1.8000.2554.51601.54128.2826.18982.44400.10277950.12402119
+
+
+===== Installation du serveur IIS =====
+Dans le cadre de la mise en place de la PKI, nous avons besoin d’un serveur web afin d’héberger les liste de révocations de certificats (CRL) et les certificats des autorités racine et distribution.  Ce serveur doit observer plusieurs pré-requis :
+  * La machine doit se trouver sur le domaine SANEF
+  * La machine doit se trouver en DMZ publique
+  * Elle doit disposer d’une IP publique
+  * Elle doit disposer d’un nom DNS associé à l’IP publique : crl.sanef.fr
+  * Le port 80 doit-être naté sur l’IP publique pour pouvoir y accéder depuis internet
+
+Installer donc un rôle IIS sur le serveur avec les options par défaut.
+
+==== Mise en place du CertEnroll ====
+
+
+Puis, Il est nécessaire de créer un répertoire CertEnroll pour la configuration des extensions CDP et AIA.
+
+> **AIA (Authority Information Access)** : spécifie l’emplacement où trouver les certificats mis à jour. 
+
+> **CDP (CRL Distribution Point)** : spécifie l’emplacement où trouver les CRL mises à jour signé par la CA
+
+  * Créer un répertoire C:\CertEnroll et  les sous-répertoires « crt » et « crl »
+  * Clic-Droit sur CertEnroll -> Partager -> Permissions -> ajouter :
+    * le compte de service pkisvc 
+    * le groupe Cert Publishers du domaine AD SANEF
+    * le groupe IIS AppPool\DefaultAppPool
+    * le compte machine de l’autorité intermédiaire (donc VMPKI2) – **Ce dernier doit avoir les droits de contrôle total sur le répertoire**
+  * Mettre les droits de modification sur ces 3 objets et sur l’ensemble des sous-répertoires de CertEnroll
+
+==== Publication de CertEnroll sur IIS ====
+
+Dans le répertoire Sites de la page d’administration IIS, clic-droit sur **Default Web Site** et cliquer sur **Ajouter un répertoire virtuel**. Sur la page qui s’affiche :
+  * Alias : **CertEnroll**
+  * Chemin d’accès physique :  **c:\CertEnroll**
+
+Ensuite, sur le répertoire **CertEnroll**, double-cliquer sur **Exploration de Répertoire**. Puis, cliquer sur **Activer** dans la barre de commande à droite de l’écran.
+
+Pour que ce serveur puisse accueillir les CRL Microsoft, il est nécessaire de désactiver une option (Double Escaping) de la façon suivante :
+
+  * Lancer la console d’administration IIS
+  * Cliquer sur le serveur VMGMAO1 -> Filtrage des demandes
+  * Sur la colonne de droite, cliquer sur **Modifier les paramètres de function**
+  * Cocher la case autoriser le double échappement
+  * Finalement, Redémarrer le service IIS en lançant la commande ''iisreset''
+
+==== Sécurisation du serveur IIS ====
+
+La première mesure de sécurité est d'appauvrir la page d’accueil et les pages d'erreur afin de transmettre le moins d'information possible à un hypothétique attaquant. 
+
+Modification de la page d’accueil **C:\inetpub\wwwroot\iistart.html**
+<code>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<title>SANEF</title>
+</head>
+<body>
+</body>
+</html>
+
+</code>
+
+Pour les nouvelles pages d'erreurs, il faut créer **C:\CertEnroll\error**
+et y intégrer les fichiers 403.htm, 404.htm, 405.htm, 406.htm, 412.htm, 500.htm, 501.htm et 502.htm. Celles-ci ont pour code :
+
+<code>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
+<title>Error</title>
+
+</head>
+<body>
+<div id="header"><h1>Erreur de serveur</h1></div>
+<div id="content">
+ <div class="content-container"><fieldset>
+  <h2>404</h2>
+</div>
+</div>
+</body>
+</html>
+</code>
+
+Il faut maintenant rediriger les erreurs sur les pages htm nouvellement créées. Sur le Default Web Site, cliquez sur l’icône **Pages d’erreurs **.
+Modifier toutes les erreurs pour exécuter les pages que l’on a créés **en passant par l'url**. Ensuite, faire un clic-droit sur chacune des lignes -> **Modifier les paramètres de fonction** pour sélectionner **pages d’erreur personnalisées**
+
+Enfin, spécifier les noms DNS permettant de contacter ce serveur WEB et les CRL correspondantes soit:
+  * Sur les DNS internes crl.sanef.fr pointe vers  10.30.192.63 pour les accès CRL en interne
+  * Sur les DNS externes crl.sanef.fr pointe vers l’IP publique
+
+===== Autorité Racine =====
+
+L'autorité racine de services de certificats produit un certificat d'Autorité de certification racine contenant la clé publique et la signature numérique de l'Autorité de certification, toutes deux créées à l'aide de la clé privée de la racine. Sont certificats est donc dit **Auto-signé**
+
+==== Répertoires métier de l'Autorité Racine ====
+Les répertoires et sous répertoires suivants doivent être présents sur le disque local C:\ sur le serveur destiné à accueillir l'Autorité racine (VMPKI1). De plus, ils doivent êtres créés avec le compte **local pkisvc**.
+  * C:\AD-CS
+    * C:\AD-CS\Backup
+    * C:\AD-CS\Data
+    * C:\AD-CS\Export
+    * C:\AD-CS\Import
+    * C:\AD-CS\Logs
+    * C:\AD-CS\Scripts
+
+==== Fichier de configuration : CAPolicy.inf ====
+
+Le fichier **CAPolicy.inf** précise les caractéristiques du certificat CA auto-signé, comme les longueurs de clé, la période de validité du certificat, les durées des CRL et CRL Delta.
+
+Créer le ce fichier dans C:\Windows sur le serveur destiné à accueillir l'Autorité racine (VMPKI1).
+**TODO : Expliquer les paramètres **
+
+C:\Windows\CAPolicy.inf
+<code>
+[Version]
+Signature= "$Windows NT$"
+
+[certsrv_server]
+RenewalKeyLength=4096
+RenewalValidityPeriod=years
+RenewalValidityPeriodUnits=10
+
+CRLPeriod=Years
+CRLPeriodUnits=1
+CRLDeltaPeriod=Days
+CRLDeltaPeriodUnits=0
+
+[AuthorityInformationAccess]
+URL = http://crl.sanef.fr/crt/sanef-ar.crt 
+
+[CRLDistributionPoint]
+URL = http://crl.sanef.fr/crl/sanef-ar.crl
+
+[AllIssuancePolicy]
+Notice = « This policy contains all other issuance policies »
+OID = 2.5.29.32.0
+
+</code>
+
+
+
+==== Installation de l'Autorité Racine ====
+
+L'installation de l'Autorité Racine ce fait au travers de l’ajout du rôle **Service de certificats Active Directory (ADCS)**.
+Afin d’afficher la page ajout de rôles cliquer sur **Démarrer** -> **Outils d’administration** -> **Gestionnaire de serveur** -> **Ajouter des Rôles**
+
+Dans le wizard d'installation suivez les étapes suivantes :
+
+  - **Suivant** -> Cocher** Serveur de certificats Active Directory**.
+  - Puis, sur la page Type d’installation, choisir Autonome car cette autorité n’utilisera pas les services d’annuaire Active Directory puis cliquer sur Suivant.
+  - Sur la page Type d’autorité de certification cocher **Autorité de certification racine**, puis cliquer sur Suivant. 
+  - Sur la page Configurer la clé privée sélectionner **Créer une nouvelle clé privée**. Cette option permet de générer la clé privée de l’autorité racine « Métier », puis cliquer sur Suivant.
+  - Sur la page Configurer le chiffrement pour l’autorité de certification sélectionner le fournisseur de chiffrement **Microsoft RSA#Microsoft Key Storage Provider**, changer la longueur de clé à **4096** ainsi que l’algorithme **SHA256**.N'oubliez pas de **cocher Autoriser l’interaction de l’administrateur lorsque l’autorité de certification racine accède à la clé privé**. Les paramètres saisit ici doivent correspondre aux paramètres définis (Longueur de clé) dans le fichier CAPolicy.inf.
+  - Sur la page Configurer le nom de l’autorité de certification remplir les champs avec les informations suivantes: **/!\Attention : Ne pas utiliser de caractères accentués. /!\**
+    * Dans le champ texte Nom commun de cette CA: **SANEF Autorite Racine**
+    * Dans le champ texte Suffixe du nom unique renseigner le nom complet de l’autorité de certificat :  **OU=Administration IT,O=SANEF,L=Reims,C=FR** ( //**C** correspond au pays et **O** correspond au nom du métier// )
+  - Sur la page Période de validité du certificat mettre **10 ans**, cette période doit correspondre à ce qui a été mis dans le fichier **CAPolicy.inf**
+  - Pour la page Configurer la base de données de certificats, renseigner les dossiers qui stockeront la base de données et les logs de la CA (répertoires métiers):
+    * Base de données renseigner le chemin suivant **C:\AD-CS\Data**
+    * Emplacement du journal : **C:\AD-CS\Logs**
+  - Enfin **vérifier** la configuration, **Installer** et **Fermer** le wizard
+
+==== Configuration de l'Autorité Racine ====
+
+La configuration de l’Autorité Racine ( période de publication des CRL, extentions AIA et CRT) 
+se fait le script ci-dessous : **post.cmd**.
+
+Pour rappel, la publication des CRL et CRT se fera au travers d’un site web. Concernant les accès externes à l’entreprise nous les publierons au travers d’un site WEB externe crl.sanef.fr.
+> CDP : Points de distribution des listes de révocations de certificats (CRL)
+> AIA : Points d’information de l’autorité de certification
+
+Pour plus d’information : 
+http://technet.microsoft.com/en-us/library/cc776904%28v=ws.10%29.aspx 
+
+<code>
+::Define CRL Publication Intervals
+certutil -SetReg CA\CRLPeriodUnits 1
+certutil -SetReg CA\CRLPeriod "Years"
+
+
+::Apply the required CDP Extension URLs
+certutil -SetReg CA\CRLPublicationURLs "1:%windir%\system32\CertSrv\CertEnroll\%%3%%8.crl\n1:C:\AD-CS\Export\sanef-ar%%8.crl\n2:http://crl.sanef.fr/crl/sanef-ar.crl\n"
+
+::Apply the required AIA Extension URLs
+certutil -SetReg CA\CACertPublicationURLs "1:%windir%\system32\CertSrv\CertEnroll\%%1_%%3%%4.crt\n1:C:\AD-CS\Export\sanef-ar.crt\n2:http://crl.sanef.fr/crt/sanef-ar.crt\n"
+
+::Enable all auditing events for SANEF Autorité Racine 
+certutil -SetReg CA\AuditFilter 127
+
+:: Set ValidityPeriod for Issued Certificates
+certutil -SetReg CA\ValidityPeriodUnits 5
+certutil -SetReg CA\ValidityPeriod "Years"
+
+:: Restart Certificate Services
+net stop certsvc
+net start certsvc
+pause
+certutil -Crl
+</code>
+
+Exécuter ce script via un invité de commande en mode administrateur puis, retaper la commande ''**certutil-CRL**'' afin de placer le fichier **sanef-ar.crl** dans **C:\AD-CS\Export\**
+
+==== Export du certificat de l'Autorité Racine ====
+
+Il est maintenant nécessaire d’exporter le certificat et la CRL de l’autorité racine sur le serveur IIS.
+Pour se faire :
+  - Cliquer sur **Démarrer** -> **Exécuter** -> **MMC** -> **Fichier** -> **Ajouter un composant enfichable** -> **Certificat** -> **Compte d’ordinateur** -> **Suivant** -> **Terminer** -> **OK**.
+  - Sur la page console 1, développer **Certificats** -> **Personnel** -> **Certificats**
+  - Sur** SANEF Autorite Racine** faire un clic droit **Toutes les tâches** -> **Exporter** ->  **Suivant**
+  - Sur la page Exporter clé privé **chocher "Non, ne pas exporter la clé privée**" -> **Suivant**
+  - Sur la page Format de fichier **chocher "X.509 DER"**, il sagit du format propriétaire Microsoft -> **Suivant**
+  - Sur la page Export du fichier **Enregistrer** le fichier sous le nom **C:\AD-CS\Export\sanef-ar.cer**.
+
+==== Copie de la CRL et du certificat sur IIS  ====
+
+Une fois que la CRL et le certificat de l’autorité racine ont été correctement générés (**C:\ADCS\Export**), il est nécessaire de les copier sur le serveur WEB crl.sanef.fr.
+
+**/!\Attention/!\** **renommer** le certificat **.cer** en **.crt** avant de le copier sur le serveur WEB.
+===== Autorité de distribution =====
+
+TODO : explication?
+
+==== Répertoires métier de l'Autorité de Distribution ====
+
+Les répertoires et sous répertoires suivants doivent être présents sur le disque local C:\ sur le serveur destiné à accueillir l'Autorité de distribution(VMPKI2). De plus, ils doivent êtres créés avec le compte **local pkisvc**.
+  * C:\AD-CS
+    * C:\AD-CS\Backup
+    * C:\AD-CS\Data
+    * C:\AD-CS\Export
+    * C:\AD-CS\Import
+    * C:\AD-CS\Logs
+    * C:\AD-CS\Scripts
+  
+==== Fichier de configuration : CAPolicy.inf ====
+
+Le fichier **CAPolicy.inf** précise les caractéristiques du certificat CA auto-signé, comme les longueurs de clé, la période de validité du certificat, les durées des CRL et CRL Delta.
+
+Créer le ce fichier dans C:\Windows sur le serveur destiné à accueillir l'Autorité racine (VMPKI1).
+**TODO : Expliquer les paramètres **
+
+C:\Windows\CAPolicy.inf
+<code>
+[Version]
+Signature= "$Windows NT$"
+
+[certsrv_server]
+RenewalKeyLength=2048
+RenewalValidityPeriod=years
+RenewalValidityPeriodUnits=5
+
+CRLPeriod=Days
+CRLPeriodUnits=7
+CRLOverlapPeriod=hours
+CRLOverlapUnits=4
+CRLDeltaPeriod=Days
+CRLDeltaPeriodUnits=1
+
+[AuthorityInformationAccess]
+URL = http://crl.sanef.fr/crt/sanef-ad.crt 
+
+[CRLDistributionPoint]
+URL = http://crl.sanef.fr/crl/sanef-ad.crl
+
+[AllIssuancePolicy]
+Notice = « This policy contains all other issuance policies »
+OID = 2.5.29.32.0.2
+</code>
+Le paramètre OID comprend les 5 premiers nombres de l'OID de CA Racine suivis d'un 2 pour signifier le caractère subordonné de l'Autorité de Distribution.
+
+**/!\Attention /!\** Vérifier que les certificats (sur le serveur web) ont bien **l’extension .crt**. Dans le cas contraire, un simple renommage suffit.
+
+==== Ajout des CRL et CRT aux magasins ====
+
+Nous allons dans un premier lieu ajouter les certificats et CRL sur les magasins de certificats clients qui ne font pas partie du domaine AD. Pour cela, passons par un script pre1.cmd se trouvant dans le dossier C:\AD-CS\Scripts. Exécuter le script via un invite de commande **administrateur**.
+
+
+C:\AD-CS\Scripts\pre1.cmd
+<code>
+@Echo Off
+c:
+cd C:\AD-CS\Import
+
+for %%c in ("*ar.crt") do certutil -addstore -f Root "%%c"
+for %%c in ("*ar.crl") do certutil -addstore -f Root "%%c"
+</code>
+
+Puis, il faut publier sur me magasin DS (AD). On utilise un script pre2.cmd avec le même méthodologie : 
+
+C:\AD-CS\Scripts\pre2.cmd
+<code>
+@Echo Off
+
+c:
+cd c:\AD-CS\Import
+for %%c in ("sanef-ar.crt") do certutil -dspublish -f "%%c" RootCA
+for %%c in ("sanef-ar.crl") do certutil -dspublish -f "%%c" VMPKI1
+</code>
+
+
+==== Installation de l'Autorité de Distribution====
+
+L'installation de l'Autorité de Distribution ce fait au travers de l’ajout du rôle **Service de certificats Active Directory (ADCS)**.
+Afin d’afficher la page ajout de rôles cliquer sur **Démarrer** -> **Outils d’administration** -> **Gestionnaire de serveur** -> **Ajouter des Rôles**
+
+Dans le wizard d'installation suivez les étapes suivantes :
+TODO : REWORK
+----
+----
+  - **Suivant** -> Cocher** Serveur de certificats Active Directory**.
+ - **Requiremet role service** : Accepter tous les rôles proposés par défaut**notamment le rôle IIS**.
+  - **Select Role Services** : Ajouter les rôles **Certificate Authority** et **Certification Authori  ty Web Enrollment.**
+Si Error //Il faut d’abordd installer l’autorité de certification avant le service de Web Enrollment// alors il faudra installer ce deuxième rôle à la fin
+  - **Specify Setup Type** : Sélectionner Entreprise, ce paramètre permet d’utiliser le domaine Active Directory pour distribuer et gérer des certificats
+  - **Specify CA Type** : Sélectionner Subordinate CA
+  - **Set Up Private key** : Sélectionner "Create a new private key"
+  - **Configure Cryptography for CA** : Saisir le provider RSA#Microsoft Key Storage Provider avec une longueur de clé de 2048 bits
+Pour le choix de l'algorithme de hash :
+**SHA-256** Si et Seulement si
+    * If Windows XP is used in the environment, Service Pack 3 should be deployed. In addition to SHA2 functionality, Service Pack 3 is currently the only Windows XP service pack that is supported. 
+ 	* If Windows XP systems would need to enroll in certificates from a SHA2 certificate authority, KB 968730 should be deployed. 
+	* If Windows Server 2003 is used in the environment, Service Pack (1 or 2) and KB 938397 should be deployed. 
+	* If Windows Server 2003 would need to enroll in certificates from a SHA2 certificate authority, Service Pack 2 and KB 968730 should be deployed. If planning on deploying KB 968730, installing KB 938397 is not necessary
+ **Sinon SHA-1**
+Ne pas oublier de cocher //administrator interaction when the private key is accessed by the CA//
+  - **Configure CA Name** : **Attention**, Ne pas utiliser de caractères accentués. 
+    * Common name for this CA  : SANEF Autorite de Distribution 
+    * Distinguished name suffix : OU=Administration IT,O=SANEF,L=Reims,C=FR //**No Space**//
+  -  **Request Certificate from a parent CA** : cocher "Save a certificate request to file and manually send it later to a parent CA."
+Puis **Browse** et enregistrer le fichier (VMPKI2.sanef.fr_SANEF_Autorite Distribution.req) dans C:\AD-CS\Export, 
+  - **Configure Certificate Database** - Utiliser les dossiers créés précédemment pour stocker la base de données et les logs de la CA.
+    * La base de donné dans : C:\AD-CS\Data
+    * Les logs dans : C:\AD-CS\Logs
+  - Finalement, **Install**, **Close** pour finir la configuration
+
+Nous avons donc une requête (*.rep) à soummetre à notre autorité Racine.
+Pour cela, copier le fichier *.req que vous venez d’exporter vers le répertoire C:\AD-CS\Export de VMPKI2 (autorité de distribution) et dans le dossier C:\AD-CS\Import, de VMPKI1 (autorité racine)
+----
+----
+
+==== Création du certificat de l'Autorité de Distribution====
+
+Le rôle maintenant ajouter, il faut faire signer la clé publique (*.req) de l’Autorité de Distribution par la clé privé de l’Autorité Racine.
+
+Copier le fichier *.req que vous venez d’exporter vers le répertoire C:\AD-CS\Export sur VMPKI2 dans le dossier C:\AD-CS\Import, de VMPKI1 (autorité racine).
+
+
+  - Sur le serveur VMPKI1, ouvrir la console d’administration « Autorité de certification », **cliquer droit** sur le serveur -> **Toutes les tâches** ->  **Soumettre une nouvelle demande…** -> Charger le fichier *.req copié précédemment dans le dossier **C:\AD-CS\Import** de **VMPKI1**.
+  - Sur le serveur **VMPKI1**, dans le dossier **Demandes en attente**, trouver la demande correspondant à la requête,** cliquer droit** sur celle-ci -> **Toutes les tâche**s -> **Délivrer**.
+  - Aller dans le dossier **Certificats délivrés** et vérifier que vous retrouvez la demande (sinon, elle se trouve dans **Demandes ayant échoué**, cela vient probablement d’un problème de nom).
+  - Si vous avez le certificat délivré, cliquer droit sur celle-ci,  **Ouvrir**. Onglet  **Détail** , cliquer sur  **Copier dans un fichier**.
+===== Sources =====
+http://msdn.microsoft.com/fr-fr/library/cc781139(v=ws.10).aspx
+http://msdn.microsoft.com/fr-fr/library/cc781292(v=ws.10).aspx
+http://technet.microsoft.com/fr-fr/windowsserver/dd448615.aspx

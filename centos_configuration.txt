@@ -1,0 +1,242 @@
+====== Basic configuration======
+
+This whole configuration aim to fill a manifest
+
+=====Système Informations=====
+
+<code>
+#uname -a
+Linux vps31739.ovh.net 2.6.32-042stab093.5 #1 SMP Wed Sep 10 17:39:49 MSK 2014 x86_64 x86_64 x86_64 GNU/Linux
+
+# cat /proc/version
+Linux version 2.6.32-042stab093.5 (root@kbuild-rh6-x64) (gcc version 4.4.6 20120305 (Red Hat 4.4.6-4) (GCC) ) #1 SMP Wed Sep 10 17:39:49 MSK 2014
+
+# cat /etc/redhat-release
+CentOS Linux release 7.0.1406 (Core)
+
+</code>
+
+
+===== Yum Basic infos =====
+
+The difference beteween update and upgrade :
+
+* yum ''upgrade'' forces the removal of obsolete packages
+* yum ''update'' may or may not also do this. 
+
+Add epel repos for Development Tools
+
+
+ > rpm -Uvh http://mirror.pnl.gov/epel/7/x86_64/e/epel-release-7-2.noarch.rpm
+
+=====Automatic OS Patching =====
+
+ 
+Create script ''yumupdate.sh''
+And put it in either of the following directories:
+
+*/etc/cron.daily/yumupdate.sh
+*/etc/cron.weekly/yumupdate.sh
+
+<code>
+#!/bin/bash
+/usr/bin/yum ­y upgrade yum /usr/bin/yum ­y upgrade
+</code>
+ **Bold Text**
+
+===== Sound =====
+
+<code>
+TODO:
+</code>
+===== dwm =====
+‹
+
+======TODO========
+
+In case of hard reboot 
+yum install yum-utils
+yum history redo last 
+
+===== Basic Tools =====
+
+
+> yum install htop
+
+===== Git =====
+<code>
+# yum install git
+$ ssh-keygen -t rsa -C "your_email@example.com"
+
+For convert existing non-empty directory into a Git working directory and push files to a remote repository
+Given you've set up a git daemon on <url> and an empty repositor
+cd <dir>
+git init
+git add .
+git commit -m 'message'
+git remote add origin <url>
+git push -u origin master
+</code>
+
+
+===== Vim =====
+
+First of all, Vim is a must have. But for root user, we are looking for a fast 
+and operational ''.vimrc'' solution. A basic vim configuration is required ; To me , the basic amix one is perfect:
+
+<code>
+#yum install git
+#yum install vim
+wget -O .vimrc https://raw.githubusercontent.com/amix/vimrc/master/vimrcs/basic.vim
+</code>
+
+
+
+==== Users configuration ====
+
+
+Time to configure our main user
+
+<code>
+ #useradd mhanne
+ #passwd mhanne (A sentence as pw is heavily strong)
+</code>
+
+| !Option | !Description |
+| `-d <home_dir>` |home_dir will be used as the value for the user’s login directory |
+| `-e <date>` |the date when the account will expire|
+| `-f <inactive>` |the number of days before the account expires |
+| `-s <shell>` |sets the default shell type  |
+
+==== Sudo ====
+
+Install sudo and move our new user to wheel
+
+
+>yum install sudo	
+
+
+Some good practices : 
+
+>Do not allow unlimited access to users with sudo 
+<code>
+mhanne ALL =(ALL) PASSWD : /usr/bin/snginx, /usr/bin/yum, /bin/rpm, /usr/sbin/service, /usr/sbin/reboot , /usr/bin/vim
+</code>
+> Log every sudo activity to a seperate file
+<code>
+Defaults logfile=/var/log/sudo.log
+</code>
+
+exit
+
+!! ZSH
+<code>
+# yum install zsh
+# usermod -s /bin/zsh mhanne
+$git clone git://github.com/robbyrussell/oh-my-zsh.git ~/.oh-my-zsh
+$cp ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc
+</code>
+Edit it for minimal conf:
+
+<code>
+ZSH_THEME="ys"
+
+alias zshconfig="vim ~/.zshrc"
+alias vimconfig="vim ~/.vimrc"
+alias nginxconfig="sudo vim ~/.config/nginx/nginx.conf"
+alias sshconfig="sudo vim /etc/ssh/ssh_config"
+alias sshdconfig="sudo vim /etc/ssh/sshd_config"
+</code>
+
+==== SSH ====
+
+/etc/ssh/sshd_config
+SSH server settings are stored in the /etc/ssh/sshd_config file. To disable root logins, make sure you have the following entry:
+
+# Prevent root logins:
+PermitRootLogin no
+and restart the sshd service:
+
+service sshd restart
+If you need root access, login as a normal user and use the su command.
+
+AllowUsers mhanne
+Better protocol (updated)
+>Protocol 2
+
+Change default port
+Port 4242
+>$ semanage port -a -t ssh_port_t -p tcp 4242
+
+after generation
+chmod 600 ~/.ssh/id_rsa*
+===== Systemd =====
+==== Basic Usage ====
+<code>
+enable nginx
+ln -s '/usr/lib/systemd/system/nginx.service' '/etc/systemd/system/multi-user.target.wants/nginx.service'
+</code>
+/usr/lib/systemd/system/nginx.service
+<code>
+[Unit]
+Description=The nginx HTTP and reverse proxy server
+After=syslog.target network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+PIDFile=/run/nginx.pid
+ExecStartPre=/usr/sbin/nginx -t
+ExecStart=/usr/sbin/nginx
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+</code>
+
+===== Add service =====
+
+==== systemd style ====
+
+==== init.d style====
+
+<code>
+
+</code>
+
+
+
+
+Todos
+- Hide Nginx version
+- change ssh port
+- SELinux
+===== tmux install & config =====
+
+===== Grub configuration =====
+/etc/grub.d/40_custom
+<code>
+if [ "${grub_platform}" == "pc" ]; then
+  menuentry "Microsoft Windows Vista/7/8/8.1 BIOS-MBR" {
+    insmod part_msdos
+    insmod ntfs
+    insmod search_fs_uuid
+    insmod ntldr     
+    search --fs-uuid --set=root --hint-bios=hd0,msdos1 --hint-efi=hd0,msdos1 --hint-baremetal=ahci0,msdos1 69B235F6749E84CE
+    ntldr /bootmgr
+  }
+fi
+</code>
+
+
+> grub2-mkconfig -o /boot/grub2/grub.cfg
+
+
+/etc/sysconfig/network-scripts/ifcfg-eth0
+ONBOOT="yes"
+
+/etc/init.d/network restart
+[[http://wiki.centos.org/HowTos/Network/SecuringSSH]]
+
+[[http://wiki.centos.org/HowTos/Network/IPTables]]

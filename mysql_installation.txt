@@ -1,0 +1,13 @@
+<code>
+sudo yum install sqlite
+usr/share/nginx/selfoss# wget http://selfoss.aditu.de/selfoss-2.12.zip
+cd /etc/nginx/sites-available 
+
+chmod -R 755 selfoss  
+chown -R nginx:nginx selfoss  
+cd selfoss 
+cp defaults.ini config.ini  
+
+</code>
+
+config.ini

@@ -1,0 +1,228 @@
+====== Nginx Setup======
+
+TODO: why nginx
+
+On purpose to build an Nginx Server you obviously need to install Nginx. 
+There is already a crossroads :
+
+  * Download last sources from Nginx repos then build them Which allow you to enjoy last security patchs.
+  * Or put an higher prior on stability/compatibiity for each part of your stack.
+
+
+===== Set up an Red Hat Compatible Nginx =====
+ 
+
+<code>
+rpm -Uvh http://mirror.pnl.gov/epel/7/x86_64/e/epel-release-7-2.noarch.rpm
+</code>
+ ===== Build from source =====
+
+<code>
+git clone && cd && build && make && main install
+</code>
+
+====== Users gestions ======
+
+So lets see how work our nginx ; 
+
+>htop report
+<code>
+11993 root      20   0  109828   2120    132 S  0.0  0.2   0:00.00 nginx
+11994 nginx     20   0  110252   2980    564 S  0.0  0.3   0:00.00 nginx
+</code>
+
+We got an nginx process run by root and an other by nginx.
+The root one called as "master process" starts all other nginx processes. 
+The owned is obviously root because you runned it as root.
+Running anything as root carries an implicit security risk and, you shouldn't rely on believes about software quality. 
+
+First of all, only root processes can listen to ports below 1024. A webserver typically runs at port 80 and/or 443.
+
+So, we have to use iptables to redirect all incoming traffic on port 80 to another port, for example 8080, and have nginx listen on that port. Plus, we have to make sure that all resources nginx needs are available to this user. That would typically be at least /var/log/nginx and the pid-file under /var/run/.
+	
+While the nginx installation, an nginx user as been created 
+
+<code>
+vi /etc/passwd | grep nginx
+nginx:x:999:998:Nginx web server:/var/lib/nginx:/sbin/nologin
+</code>
+  *x notify that the user use a crypted password stored in /etc/shadow
+  *999 UID
+  *998 GID
+
+====== Check the configuration and status of Nginx ======
+ 
+<code>
+#nginx -t
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+#service nginx status
+redirecting to /bin/systemctl status  nginx.service
+nginx.service - The nginx HTTP and reverse proxy server
+   Loaded: loaded (/usr/lib/systemd/system/nginx.service; disabled)
+   Active: active (running) since Tue 2014-10-14 11:53:47 CEST; 1min 1s ago
+  Process: 12073 ExecStart=/usr/sbin/nginx (code=exited, status=0/SUCCESS)
+  Process: 12070 ExecStartPre=/usr/sbin/nginx -t (code=exited, status=0/SUCCESS)
+ Main PID: 12074 (nginx)
+   CGroup: /system.slice/nginx.service
+           ├─12074 nginx: master process /usr/sbin/nginx
+           └─12075 nginx: worker process
+<\code>
+
+Go on `http://5.196.18.207/` and enjoy our brand new nginx
+
+
+
+
+Now we need to set our Domaine 
+On your service provider modify the A field in DNS zone for your server ip :
+Old: 213.186.33.5
+New: 5.196.18.207
+
+Then, add all virtualhost sub  domaine as CNAME to your main domain.
+
+=======First virtual host=======
+
+I dont know why but those guys was not available : sites-available/ & sites-enabled/
+
+Let's create some resources in /usr/share/nginx/ for the future :
+<code>
+mkdir /usr/share/nginx/default
+echo "<html><body>Hello i'm the default page</body></html>" >> /usr/share/nginx/default/index.html
+</code>
+
+Then let's deal with the nginx config.
+ For modularity add
+
+include /etc/nginx/sites-enabled/*;` to nginx.conf and create directorys
+mkdir sites-enabled/
+mkdir sites-available/
+
+Then copie base template and add symlink 
+
+cp /etc/nginx/conf.d/default.conf /etc/nginx/site-available/index.conf
+ln -s /etc/nginx/sites-available/index.conf /etc/nginx/sites-enabled/
+
+
+Now we have to figure how our nginx will work. It seems that 1 subdomain == 1 virtualhost
+is a legitime strategy. So, let add a subdomaine shaarli.mhanne.ovh with our IP in A DNS type.
+
+then let's up our virtualhost shaarli
+
+ERROR
+I get an 403 Forbidden when I try to access shaarli.no
+log
+
+2014/10/14 21:49:24 [error] 12694#0: *150 directory index of "/usr/share/nginx/shaarli/" is forbidden, client: 83.157.25.161, server: www.shaarli.mhanne.ovh, request: "GET /        HTTP/1.1", host: "shaarli.mhanne.ovh"
+
+
+Correction 
+
+chmod 755 on usr/share 
+for now all belong to root, I will fix this later
+
+
+=======PHP Deployement  =======
+Wtf imma doing, why php ?! Cuz I want shaarli a wonderful opensource pastbin made in France, Oui Monsieur ! So let's do this:
+
+> yum install php-fpm
+
+Checkout the service status and activated it 
+> service php-fpm status && service php-fpm start && service php-fpm status
+
+Edit /etc/nginx/sites-available/shaarli.conf
+
+Uncomante location ~ \.php$ {
+  fastcgi_pass   127.0.0.1:9000;
+  fastcgi_index  index.php;
+  fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+  include        fastcgi_params;
+}
+But modify fastcgi_param  SCRIPT_FILENAME   /usr/share/nginx/               shaarli$fastcgi_script_name;
+for avoidin a file not found 
+
+Php work, so we need to import shaarli
+cd /usr/share/nginx/shaarli
+wget https://github.com/sebsauvage/Shaarli/archive/master.zip
+
+unzip master.zip
+rm index.html phpinfo.php master.zip && mv Shaarli-master/* . && rm -rf Shaarli-master/
+
+Here we remet the 403 forbiden error .It come from that I did download shaarli and unzipped it on root user . I need to reset all permissions to 755 
+
+But, shaarli throwback an Error !
+ERROR: Shaarli does not have the right to write in its own directory (/usr/share/nginx/shaarli).
+I'm shocked and run to 
+
+===== php modules=====
+
+loading php modules :
+extect from php.ini :
+<code>
+862 ;;;;
+863 ; Note: packaged extension modul
+es are now loaded via the .ini files
+864 ; found in the directory /etc/php.d; these are loaded by default.
+865 ;;;;
+</code>
+Selphoss as an rss reader requier php-xml module
+
+> sudo yum install php-xml
+
+
+====== .htaccess ======
+We need htpasswd to create and generate an encrypted for the user using Basic Authentication.
+<code>
+yum -y install httpd-tools
+htpasswd -c /etc/nginx/.htpasswd nginx
+</code>
+
+In nginx server
+<code>
+server {
+   auth_basic            "Basic Auth";
+   auth_basic_user_file  "/etc/nginx/.htpasswd";
+}
+</code>
+
+====== HTTPS ======
+Install openssl before enabling OpenSSL.
+Create a self-signed certificate
+<code>
+# cd /etc/nginx/
+# openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out cert.key
+# chmod 600 cert.key
+# openssl req -new -key cert.key -out cert.csr
+# openssl x509 -req -days 365 -in cert.csr -signkey cert.key -out cert.crt
+</code>
+Example of a server block using SSL:
+/etc/nginx/nginx.conf
+<code>
+server {
+        listen       443 ssl;
+        server_name  localhost;
+
+        ssl_certificate      cert.crt;
+        ssl_certificate_key  cert.key;
+
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+
+        ssl_ciphers  HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers  on;
+
+	root   /usr/share/nginx/html;
+        location / {
+            index  index.html index.htm index.php;
+        }
+}
+</code>
+=====Links=====
+
+http://nginx.org/
+http://www.binarytides.com/install-nginx-php-fpm-centos/
+http://www.rpmfind.net/linux/rpm2html/search.php?query=epel-release
+https://fedoraproject.org/wiki/EPEL
+https://unix.stackexchange.com/questions/134301/why-does-nginx-starts-process-as-root
+https://raw.githubusercontent.com/amix/vimrc/master/vimrcs/basic.vim

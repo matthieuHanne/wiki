@@ -1,0 +1,28 @@
+
+[[Poulet au olives]]
+
+[[Poulet et patates au four au petis légumes]]
+
+[[Burger très spécial]]
+
+[[Pâtes au poulets champignons (Rouge / Blanche)]]
+
+[[Spagetti bolognèse]]
+
+[[Pizza baguette]]
+
+[[[TODO] Patte a pizza]]
+
+[[Gnocchi lentilles]]
+
+<$checkbox tag="done">[[ Lasagnes]]</$checkbox>
+
+
+
+[[Nouilles au poulets thaï]]
+
+[[[TODO] Chicken gyros with tatzuki sauce]]
+
+[[ Burritos spécial]]
+
+[ Fajitas poulet ]

@@ -1,0 +1,49 @@
+====== Macro Outlook ======
+
+Afin d'éviter les erreurs d’auto-complétion lors d'envoi de mails aux clients, vous pouvez ajouter cette macro à votre Outlook.
+Celle-ci affiche une alerte lors d'une tentative d'envoi de mail à différents domaines (nes.fr exclut).
+
+===== Code =====
+
+<code>
+Private Sub Application_ItemSend(ByVal Item As Object, Cancel As Boolean)
+
+On Error Resume Next
+Dim servealDomaine As Boolean
+ 
+servealDomaine = False
+For Each Recipient In Item.Recipients
+    If InStr(txt, Split(Recipient.Address, "@", 2)(1)) = 0 Then
+        txt = txt & Split(Recipient.Address, "@", 2)(1) & Chr(10)
+    End If
+    For Each OtherRecipient In Item.Recipients
+        If Split(Recipient.Address, "@", 2)(1) <> "nes.fr" And Split(OtherRecipient.Address, "@", 2)(1) <> "nes.fr" Then
+            If StrComp(Split(Recipient.Address, "@", 2)(1), Split(OtherRecipient.Address, "@", 2)(1)) <> 0 Then
+                severalDomaine = True
+            End If
+        End If
+    Next OtherRecipient
+Next Recipient
+ 
+If severalDomaine = True Then
+    Prompt$ = "Vous allez envoyer à plusieur domaines ! êtes vous sur? " & Chr(10) & "Domaine : " & Chr(10) & txt
+    If MsgBox(Prompt$, vbYesNo + vbQuestion + vbMsgBoxSetForeground + vbCritical, "Check Address") = vbNo Then
+        Cancel = True
+    End If
+End If
+
+End Sub
+
+</code>
+
+===== Procédure d'installation =====
+
+  - Ouvrir Microsoft Office Outlook 
+  - Cliquer sur « Outils »
+  - Dans « Tools Macro » Cliquer sur « Sécurité... » 
+  - Dans « Centre de gestion de la confidentialité »  Cliquer sur « Aucun contrôle de sécurité pour les macros » 
+  - Dans « Tools Macro » Cliquer « Outils » puis sur « Visual Basic Editor »
+  - Dans Affichage cliquer sur Explorateur de projet
+  - Cliquer sur « Projet 1 (VbaProject.OTM) » puis sur « Microsoft Office Outlook Objets »
+  - Double-cliquer sur « ThisOutlookSession (élément d’arborescence) »
+  - Copier le code ci-dessus dans la box, Enregistrer et Fermer

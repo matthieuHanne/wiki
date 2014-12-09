@@ -1,0 +1,51 @@
+====== Project création ======
+/opt/splunk/bin/splunk
+
+restart ! ./splunk restartss
+
+===== 
+<code>
+tree
+.
+├── appserver
+│   └── templates
+│       └── redirect.tmpl
+├── bin
+│   └── README
+├── default
+│   ├── app.conf
+│   └── data
+│       └── ui
+│           ├── nav
+│           │   └── default.xml
+│           └── views
+│               └── default.xml
+├── django
+│   └── mHanneApp
+│       ├── __init__.py
+│       ├── __init__.pyo
+│       ├── static
+│       │   └── mHanneApp
+│       │       └── custom.css
+│       ├── templates
+│       │   ├── home.html
+│       │   └── morning_check.html
+│       ├── templatetags
+│       │   ├── __init__.py
+│       │   └── __init__.pyo
+│       ├── tests.py
+│       ├── urls.py
+│       ├── urls.pyo
+│       ├── views.py
+│       └── views.pyo
+└── README
+
+</code>
+
+
+====== Requesting SQL Database of RT4 ======
+
+We build 
+
+====== Scripts  ======
+
