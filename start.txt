@@ -2,7 +2,8 @@ Bienvenu sur mon wiki.
 
 ====== Article achevé ======
 ----
-
+  * [[storage|[EN] Linux Storage]]
+  * [[ansible| [EN] Ansible ]]
   * [[PKI Microsofttest|[Fr] PKI Microsoft]]
   * [[vba_mail_macro|[Fr] Macro Alerte VBA]]
 
@@ -16,6 +17,7 @@ Bienvenu sur mon wiki.
   * [[defensive_security|Defensive security]]
   * [[offensive_security|Offensive security]]
   * [[backend_development|[EN] Backend development]]
+  * [[seedbox|[EN] SeedBox]]
 ====== ToDos ======
 ----
   * [[selfoss_paths|Selfoss configuration & customization]]
@@ -25,5 +27,8 @@ Bienvenu sur mon wiki.
 
   * [[todos|Todos List]]
   * [[nes_lan|Nes lan]]
+  * [[mangoDB | MongoDB]]
+  * [[haProxy | HAProxy]]
+  * [[ansible_docker | Ansible & Docker ]]
 
 

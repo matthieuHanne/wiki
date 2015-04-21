@@ -31,7 +31,65 @@ https://github.com/matthieuHanne/.config/blob/master/scripts/iptables
 
 service iptables save
 if you have an error about restorecon
-yum install policycoreutils
+yum install policycoreutils====== Biblio ======
+http://help.ovh.co.uk/HardRaidLsi
+https://supportforums.cisco.com/document/62901/megacli-common-commands-and-procedures
+
+
+====== Openvpn ======# parted
+GNU Parted 2.3
+Using /dev/sda
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) print free
+Model: LSI MR9271-4i (scsi)
+Disk /dev/sda: 2399GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: msdos
+
+Number  Start   End     Size    Type     File system     Flags
+        32.3kB  2097kB  2065kB           Free Space
+ 1      2097kB  21.0GB  21.0GB  primary  ext4            boot
+ 2      21.0GB  345GB   325GB   primary  ext4
+ 3      345GB   346GB   536MB   primary  linux-swap(v1)
+        346GB   2399GB  2053GB           Free Space
+
+(parted) mkpart extended 346GB 2399GB                                     
+(parted) mkpart logical 346GB 1096GB                                      
+(parted) mkpart logical 1096GB 1856GB                                     
+(parted) mkpart logical 1856GB 2399GB                                     
+(parted) print free                                                       
+Model: LSI MR9271-4i (scsi)
+Disk /dev/sda: 2399GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: msdos
+
+Number  Start   End     Size    Type      File system     Flags
+        32.3kB  2097kB  2065kB            Free Space
+ 1      2097kB  21.0GB  21.0GB  primary   ext4            boot
+ 2      21.0GB  345GB   325GB   primary   ext4
+ 3      345GB   346GB   536MB   primary   linux-swap(v1)
+ 4      346GB   2399GB  2053GB  extended                  lba
+        346GB   346GB   241kB             Free Space
+ 5      346GB   1096GB  750GB   logical
+ 6      1096GB  1856GB  760GB   logical
+        1856GB  1856GB  1039kB            Free Space
+ 7      1856GB  2399GB  543GB   logical
+
+(parted)               
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -62,7 +120,9 @@ L’option “-c” permet d’effectuer la totalité des vérifications contenu
 
 /etc/php.ini
 expose_php = Off
-
+====== Biblio ======
+http://help.ovh.co.uk/HardRaidLsi
+https://supportforums.cisco.com/document/62901/megacli-common-commands-and-procedures
 
 Enable Authentication for Single-User Mode
 Checking package audit tool
@@ -97,6 +157,53 @@ rpm -i splunk-6.2.0-237341-linux-2.6-x86_64.rpm
 **TODO**
 http://docs.splunk.com/Documentation/Splunk/latest/Installation/RunSplunkasadifferentornon-rootuser
 
+
+
+
+===== Enterprise Security =====
+
+Voici les pré-requis matériel pour l'apps E/S de Splunk :
+ 
+
+=====  Radius =====
+
+<code>
+ ps -aux | grep log
+Warning: bad ps syntax, perhaps a bogus '-'? See http://procps.sf.net/faq.html
+root      2178  0.0  0.3  27536  1612 ?        Sl   Jul24  18:34 /usr/sbin/rsyslogd -c3
+root     17988  0.0  0.1   3092   524 pts/0    R+   15:56   0:00 grep log
+</code>
+
+Tans
+
+we need to forward logs over udp
+
+Add 
+
+On radius server 
+
+
+   - Entré de donnée -> Fichier et répertoires -> Nouveau
+   -  
+Ent
+
+
+Port for data transmission
+<code>
+./splunk add forward-server 192.168.0.134:9997
+</code>
+
+Port for configuration
+<code>
+/opt/splunkforwarder/bin/splunk set deploy-poll 192.168.0.134:8089
+
+</code>
+==== Security Posture ====
+
+
+==== Configuration ====
+1ère écran défaults settings
+ 
 ===== Log supervision =====
   * /var/log/auth.log qui contient toutes les tentatives d’accès au serveur. Il peut être utile de filtrer le contenu, par exemple : cat /var/log/auth.log | grep authentication failure ;
   * /var/log/message et /var/log/syslog contient un peu de tout (erreurs, bugs, informations, etc) ;
@@ -107,4 +214,6 @@ http://docs.splunk.com/Documentation/Splunk/latest/Installation/RunSplunkasadiff
 
 ===== Sources =====
 ---
-http://wiki.centos.org/HowTos/Network/IPTables
+  * http://wiki.centos.org/HowTos/Network/IPTables
+  * http://help.ovh.co.uk/HardRaidLsi
+  * https://supportforums.cisco.com/document/62901/megacli-common-commands-and-procedures

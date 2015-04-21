@@ -1,0 +1,72 @@
+====== Ansible ======
+Test configuration 
+
+<code>
+ansible -i hosts_production haservers_backup -m ping
+ansible-playbook -i hosts_production webservers.yml --check -s -vvvv 
+</code>
+
+Run configuration 
+
+<code>
+
+</code>
+
+Test Conf
+<code>
+sudo ansible-playbook nginx_docker.yml  -c local -vvvv     
+ansible -i hosts_production haservers_backup -m ping
+ansible-playbook -i hosts_production haservers.yml --check -s
+</code>
+====== Docker ======
+
+Using docker's RUN command, we will begin with creating a new container based on the Ubuntu image. We are going to attach a terminal to it using the “-t” flag.
+
+
+<code>sudo docker run -i -t -p 80:80 ubuntu /bin/bash</code>
+
+To attach yourself back to this container:
+
+    List all running containers using sudo docker ps
+    Find its ID
+    Use sudo docker attach [id] to attach back to its terminal
+
+
+Let's append Ubuntu's universe to the default list of the base image and update the list with the newly added source.
+
+    echo "deb http://archive.ubuntu.com/ubuntu/ raring main universe" >> /etc/apt/sources.list
+    apt-get update
+
+
+
+
+
+<code>
+apt-get install -y vim\
+                   wget \
+                   dialog \
+                   net-tools \
+                   openssh-server \
+                   nginx    
+
+</code>
+
+===== Nginx Configuration =====
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 

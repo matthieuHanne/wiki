@@ -1,0 +1,100 @@
+====== Splunk ======
+
+Splunk Enterprise est la plateforme leader de l'intelligence opérationnelle en temps réel. Lancée en 2006, cette société américaine articule sa technologie autour d'un moteur d'indexation et d'analyse de données machine, capable d'aller puiser dans de nombreuses sources (logs de serveurs, réseaux, informations issues de capteurs, GPS...). Objectif de Splunk : donner les moyens de superviser tout type d'infrastructure IT, qu'elle soit mobile, embarquée, physique, virtuelle, ou dans un cloud (privé ou public). La marque de fabrique de Splunk est d'offrir une solution qui permette le traitement de données en masse, avec à la clé des analyses de corrélation en vue de détecter les erreurs, les signaux faibles, anticiper les événements, incidents...
+
+===== Composant de la solution =====
+
+La solution Splunk fonctionne avec trois composants de base :
+  * **L'universal forwarder** : Agent permettant de remonté des informations (du serveur sur lequels il est installé ou distance)
+  * **L'indexer** : C'est le moteur qui va transformer les données (log, fichier, retours de commande...) en éléments indexer dans les bases de données Splunk
+  * **Le search head** : C'est l'interface Web permettant de configurer/faire des recherches/présenter les données
+
+Les deux derniers composants, dans les petites installations sont mise en place sur un même serveur. Dans la cas d'une grande quantité de données à traiter, ils peuvent être multiple.
+
+Splunk fonctionne à base de licence sur le volume de données indexer quotidiennement. En version gratuite, un volume de 500Go peut être traiter.
+
+===== Universal forwarder =====
+
+L'Universal forwarder est un service splunk permettant de faire de tourner un service sur des serveurs hôtes et de transmettre des logs via TCP à l’entité principale : **l'indexer**. Le déploiement de forwarder ce fait via 
+
+==== Installation ====
+
+L'installation d'un splunk forwarder se fait très simplement via la CLI **root** :
+
+<code>
+cd /opt/
+wget http://www.splunk.com/page/download_track?file=6.2.1/universalforwarder/<distro>
+dpkg -i splunkforwarder-6.2.1-245427-linux-2.6-amd64.deb
+rm splunkforwarder-6.2.1-245427-linux-2.6-amd64.deb
+</code> 
+
+Puis, lancez pour la première fois le forwarder et activer le lancement au boot. Arrêter le service si nécessaire.
+
+<code>
+$SPLUNK_HOME/bin/splunk enable boot-start
+$SPLUNK_HOME/bin/splunk start --accept-licence
+</code>
+
+==== Configuration ====
+
+Afin de le forwarder puisse transmettre ces données, if faut activer l'écoute sur **l'indexer**.
+Cela peut se faire via l'interface web :
+  > Manager -> sending and receiving -> configure receiving -> new 
+
+Ou via CLI: 
+<code>
+/opt/splunk/bin/splunk enable listen 9997 
+    # 9997 : port par DATA défaut
+</code>
+
+Puis, il faut configurer la connexion du forwarder vers le serveur principal et la tester:
+<code>
+$SPLUNK_HOME/bin/splunk add forward-server hostname.domain:9997
+    # hostname.domain : FQDN ou IP de l'indexer
+    # 9997 port configuré précédemment 
+    
+$SPLUNK_HOME/bin/splunk list forward-server
+    # Si Login/passwd test default: admin/changeme
+</code>
+
+Il faut maintenant spécifier au forwader où trouver les logs sur le host. Cette configuration se fait au choix depuis l'indexer (configuration centralisé) ou directement sur le host.
+
+=== Configuration centraliser ===
+TODO: 
+**"Classe"** 
+
+=== Configuration décentralisé ===
+TODO: 
+
+
+=== Gestion des droits ===
+
+Il faut bien faire attention à ce que l'utilisateur splunk (propriétaire du service) ai les droits d'acces au logs souhaités. Par exemple pour des logs freeradius la procédure à suivre : 
+
+<code>
+ls -l /var/log/freeradius/ | tail -f
+    -rw-r--r--  1 freerad freerad    1180 déc 31 06:25 radius.log
+
+usermod -a -G freerad splunk
+
+cat /etc/group | grep spl
+    freerad:x:107:splunk
+    splunk:x:10238:
+</code>
+
+
+====== Définitions ======
+
+  * **Sourcetype** : Définition de type de la source de donnée. Cette définition permet d'associer de nombreux traitement relatif au format des logs. Il est indispensable de bien définir le sourcetype.
+  * **Index** : L'index constitue la base de données dans laquelles les informations seront stockés. Les principales raisons d'utiliser différents indexes sont :
+    * La gestion des droits (les recherches/vues/tableaux de bords) peuvent être restreints à un indexe
+    * La durée de rétention des informations : c'est au niveau de chaque indexe que l'on définie la durée de conservation des données.
+    * Dans la cadre de test, l'utilisation d'un index dédié permet de ne pas impacter les autres données. 
+
+:!: Les données indexer ne peuvent être supprimées unitairement. Par contre, un indexe peut être vider complètement des informations qu'il contient.
+
+  * **Fields** : Les fields sont des informations extraitent des logs brutes. Cette extraction peut être réalisé lors de l'indexation OU/ET pendant les recherches. Les fields peuvent être le résultat d'un calcul, du commande externe....
+
+  * **Remarque** : La syntaxe des expressions régulières est différentes selon qu'elles sont utilisés lors de l'indexation ou de la recherche.''
+
+  * **Tag** : Les tags sont une sorte de label qui peuvent être utilisé pour regroupé des données similaire.

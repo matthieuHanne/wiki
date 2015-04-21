@@ -1,0 +1,77 @@
+====== Mango ======
+!! Index have to fit in RAM
+/!\ Consomation en ram
+
+======= Sharding ======
+
+
+===== UnSharded =====
+==== Repicaset Architecture====
+ 
+
+Primaire 
+()
+Chez SiB R/W sur Primaire
+Secondaire
+Utiliser que pour le failover
+Arbitrer
+  - Priority 
+  - Menmbers
+ Pivot pour l'algo d'élection ( On prefer un nombre impert)
+
+
+OPLOG for replication 
+
+===== Sharded =====
+
+Mogos
+
+Using of several replicaset unwawere of shared mode
+
+Mongoconfig used for indexing shard
+Shared key (1ere lettre du mail + )
+Chunks
+
+Balancer
+
+
+===== Collections =====
+
+===== Profiling =====
+
+===== MongoDB =====
+
+db.cuerrentop() : monitoring
+
+
+====== MMS ======
+QUEUES (<= 10)
+LOCK %/t
+PAGEFAULT <1000/minues (w/r+ on  hdd)
+CONNECTIONS (<1000)
+CHARTIO
+
+
+
+====  Archi====
+
+1 shard : 1P, 2S, 500Go
+
+  - Cluester 7 (17 shards : )
+    - e - xxxxxxx 
+    - emailing - xxxxxxx
+    - mm
+
+  - Cluster 10
+    - Mail_body (isolation car on joue que sur les meta données)
+  - Mtaprocess
+  - Redirection
+  - Central DB
+  - Tremline
+  - GlobalDB
+!! Roukmongo (BO pour cluster 7 // mangoviewer)
+===== Mails =====
+
+Relais pour recevoir (Simple SMTP)
+
+MTA pour envoyer 

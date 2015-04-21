@@ -169,8 +169,9 @@ es are now loaded via the .ini files
 Selphoss as an rss reader requier php-xml module
 
 > sudo yum install php-xml
+====== Test services ======
 
-
+    netstat -anltp | grep "LISTEN"
 ====== .htaccess ======
 We need htpasswd to create and generate an encrypted for the user using Basic Authentication.
 <code>

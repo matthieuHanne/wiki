@@ -1,0 +1,348 @@
+====== R.A.I.D ======
+
+For those kind of questions : 
+  * How it works ?
+  * Which RAID sould I use ? 
+  * Can I use it with my serveur (Minimum Disk Drives) ?
+  * Can I migrate my RAID (Migration table) ? 
+
+You may refer to [[ https://docs.oracle.com/cd/E19494-01/820-1260-15/appendixf.html | Oracle Documentation about raid]] 
+
+:!: __**The first step is to boot in rescue mode then finding the RAID conroller**__ :!:
+
+<code>
+root@rescue:~# lspci | grep RAID
+03:00.0 RAID bus controller: LSI Logic / Symbios Logic MegaRAID SAS 2208 [Thunderbolt] (rev 05)
+</code>
+
+===== MegaCli =====
+
+Not much to say beside it's the Symbios Logic MegaRAID controller client.
+
+==== General Parameters ====
+
+> Adapter parameter -aN 
+
+The parameter -aN (where N is a number starting with zero or the string ALL) specifies the adapter ID. If you have only one controller it’s safe to use ALL instead of a specific ID, but you’re encouraged to use the ID for everything that makes changes to your RAID configuration.
+
+> Physical drive parameter      -PhysDrv [E:S] 
+
+For commands that operate on one or more pysical drives, the -PhysDrv [E:S] parameter is used, where E is the enclosure device ID in which the drive resides and S the slot number (starting with zero). You can get the enclosure device ID using MegaCli -EncInfo -aALL. The E:S syntax is also used for specifying the physical drives when creating a new RAID virtual drive (see 5).
+
+> Virtual drive parameter -Lx is used for specifying the virtual drive (where x is a number starting with zero or the string all).
+
+==== Gather information ====
+
+=== Enclosure information ===
+
+
+<code>
+root@rescue:~# MegaCli -EncInfo -aALL
+                                     
+    Number of enclosures on adapter 0 -- 3
+
+    Enclosure 0:
+    Device ID                     : 8
+     ###.... then hardware information 
+</code>
+
+=== Virtual drive information ===178.33.63.76
+
+
+<code>
+root@rescue:~# MegaCli -LDInfo -Lall -aALL
+                                     
+Adapter 0 -- Virtual Drive Information:
+Virtual Drive: 0 (Target Id: 0)
+Name                :
+RAID Level          : Primary-5, Secondary-0, RAID Level Qualifier-3
+Size                : 5.453 TB
+###.... then hardware information 
+
+Virtual Drive: 1 (Target Id: 1)
+Name                :
+RAID Level          : Primary-1, Secondary-0, RAID Level Qualifier-0
+Size                : 3.271 TB
+###.... then hardware information 
+</code>
+
+=== Physical drive information ===
+
+This command show an enormous quantity of information... 
+It's a mission for **grep** LOL to retreve the [E:S] tuple that we will need later.
+
+<code>
+root@rescue:~# MegaCli -PDlist -a0 | grep -e '^Enclosure Device ID:' -e '^Slot Number:'
+Enclosure Device ID: 8
+Slot Number: 0
+Enclosure Device ID: 8
+Slot Number: 1
+###....
+Enclosure Device ID: 9
+Slot Number: 11
+Enclosure Device ID: 9
+Slot Number: 12
+</code>  
+
+==== Building the RAID ====
+ 
+=== Removing Virtual drive ===
+
+
+> Remove Virtual drive ** MegaCli -CfgLdDel -Lx -aN** 
+
+<code>
+root@rescue:~# MegaCli -CfgLdDel -L0 -a0
+                                     
+Adapter 0: Deleted Virtual Drive-0(target id-0)
+</code>
+
+
+== Creating Raid ==
+
+
+> Create RAID 0, 1, 5 drive **MegaCli -CfgLdAdd -r(0|1|5) [E:S, E:S, ...] -aN**
+
+> Create RAID 10 drive **MegaCli -CfgSpanAdd -r10 -Array0[E:S,E:S] -Array1[E:S,E:S] -aN**
+
+<code>
+MegaCli -CfgSpanAdd -r50 -Array0[8:0,8:1,8:2,8:3,8:4,8:5,8:6,8:7,8:8,8:9,8:10,8:11] -Array1[9:1,9:2,9:3,9:4,9:5,9:6,9:7,9:8,9:9,9:10,9:11,9:12] -a0
+MegaCli -CfgLdAdd -r5 [8:0,8:1,8:2,8:3,8:4,8:5,8:6,8:7,8:8,8:9,8:10,8:11,9:1,9:2,9:3,9:4,9:5,9:6,9:7,9:8,9:9,9:10,9:11,9:12] -a0
+root@rescue:~# MegaCli -CfgLdDel -L0 -a0
+                                     
+Adapter 0: Deleted Virtual Drive-0(target id-0)
+
+</code>
+
+:!: You have to wait ! :)
+
+
+====== Partitioning ======
+PC standard as exists today has 64 bytes, 16 bytes per partition between the 447th to 510th bytes of the first sector of the boot disk, as the partition table. The 4 entries are known as the primary partitions.
+
+One entry can be used as an extended partition for holding the boundary of the logical partitions inside.
+
+Since the BIOS only reads the first sector, or the first 512 bytes, of the first bootable hard disk there is no possibility of creating more than 4 primary partitions from a hard disk. The first 446 byte is the MBR and the last 2 bytes are spare.
+
+Logical partitions works like links in a chain with the entended partition denoting the begining and end links. The 1st logical partition carries the address for the 2nd logical partition and the 2nd caries the address of the 3rd and so on. The logical partitions cannot be broken and do not have a well-defined begining and end points like the primary/extended partitions.
+
+Linux differs from DOS, Windows, FreeBSD, PCBSD and Solaris by being bootable from a logical partition.
+
+http://www.thegeekstuff.com/2011/09/parted-command-examples/
+<code>
+# parted
+GNU Parted 2.3
+Using /dev/sda
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) print freehosts_production.save
+Model: LSI MR9271-4i (scsi)
+Disk /dev/sda: 2399GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: msdos
+
+Number  Start   End     Size    Type     File system     Flags
+        32.3kB  2097kB  2065kB           Free Space
+ 1      2097kB  21.0GB  21.0GB  primary  ext4            boot
+ 2      21.0GB  345GB   325GB   primary  ext4
+ 3      345GB   346GB   536MB   primary  linux-swap(v1)
+        346GB   2399GB  2053GB           Free Space
+
+(parted) mkpart extended 346GB 2399GB                                     
+(parted) mkpart logical 346GB 1096GB                                      
+(parted) mkpart logical 1096GB 1856GB                                     
+(parted) mkpart logical 1856GB 2399GB                                     
+(parted) print                                                       
+Model: LSI MR9271-4i (scsi)
+Disk /dev/sda: 2399GB
+Sector size (logical/physical): 512B/4096B
+Partition Table: msdos
+
+Number  Start   End     Size    Type      File system     Flags
+        32.3kB  2097kB  2065kB            Free Space
+ 1      2097kB  21.0GB  21.0GB  primary   ext4            boot
+ 2      21.0GB  345GB   325GB   primary   ext4
+ 3      345GB   346GB   536MB   primary   linux-swap(v1)
+ 4      346GB   2399GB  2053GB  extended                  lba
+ 5      346GB   1096GB  750GB   logical
+ 6      1096GB  1856GB  760GB   logical
+ 7      1856GB  2399GB  543GB   logical
+</code>
+====== Logical Volume Manager ======
+
+LVM is a logical volume manager for the Linux kernel that manages disk drives and similar mass-storage devices. Heinz Mauelshagen wrote the original code in 1998, taking its primary design guidelines from the HP-UX's volume manager
+
+===== Common uses =====
+
+LVM is commonly used for the following purposes:
+
+  * Unordered List ItemManaging large hard disk farms by allowing disks to be added and replaced without downtime or service disruption, in combination with hot swapping.
+  * Unordered List ItemOn small systems (like a desktop at home), instead of having to estimate at installation time how big a partition might need to be in the future, LVM allows file systems to be easily resized later as needed.
+  * Unordered List ItemPerforming consistent backups by taking snapshots of the logical volumes.
+  * Creating single logical volumes of multiple physical volumes or entire hard disks (somewhat similar to RAID 0, but more similar to JBOD), allowing for dynamic volume resizing.
+
+LVM can be considered as a thin software layer on top of the hard disks and partitions, which creates an abstraction of continuity and ease-of-use for managing hard drive replacement, re-partitioning, and backup.
+
+Let's create our architecrue :
+m( Why this architecture ? :-X
+
+<code>
+root@rescue:~# lsblk
+NAME   MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda      8:0    0   2.2T  0 disk 
+|-sda1   8:1    0  19.5G  0 part 
+|-sda2   8:2    0 302.2G  0 part 
+|-sda3   8:3    0   511M  0 part 
+|-sda4   8:4    0     1K  0 part 
+|-sda5   8:5    0 698.5G  0 part 
+|-sda6   8:6    0 707.8G  0 part 
+`-sda7   8:7    0 505.5G  0 part 
+root@rescue:~# pvcreate /dev/sda5
+  Writing physical volume data to disk "/dev/sda5"
+  Physical volume "/dev/sda5" successfully created
+root@rescue:~# pvcreate /dev/sda6
+  Writing physical volume data to disk "/dev/sda6"
+  Physical volume "/dev/sda6" successfully created
+root@rescue:~# pvcreate /dev/sda7
+  Writing physical volume data to disk "/dev/sda7"
+  Physical volume "/dev/sda7" successfully created
+root@rescue:~# vgcreate vg5 /dev/sda5
+  Volume group "vg5" successfully created
+root@rescue:~# vgcreate vg6 /dev/sda6
+  Volume group "vg6" successfully created
+root@rescue:~# vgcreate vg7 /dev/sda7
+  Volume group "vg7" successfully created
+root@rescue:~# lvcreate --name lv5 --extents 80%FREE vg5
+  Logical volume "lv5" created
+root@rescue:~# lvcreate --name lv6 --extents 80%FREE vg6
+  Logical volume "lv6" created
+root@rescue:~# lvcreate --name lv7 --extents 80%FREE vg7
+  Logical volume "lv7" created
+root@rescue:~# lsblk
+NAME               MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda                  8:0    0   2.2T  0 disk 
+|-sda1               8:1    0  19.5G  0 part 
+|-sda2               8:2    0 302.2G  0 part 
+|-sda3               8:3    0   511M  0 part 
+|-sda4               8:4    0     1K  0 part 
+|-sda5               8:5    0 698.5G  0 part 
+| `-vg5-lv5 (dm-0) 251:0    0 558.8G  0 lvm  
+|-sda6               8:6    0 707.8G  0 part 
+| `-vg6-lv6 (dm-1) 251:1    0 566.2G  0 lvm  
+`-sda7               8:7    0 505.5G  0 part 
+  `-vg7-lv7 (dm-2) 251:2    0 404.4G  0 lvm  
+</code>
+
+If tyou get an not found: device not cleared
+<code>
+root@ns513983:~# lvcreate --name lv5 --extents 80%FREE vg5
+  /dev/vg5/lv5: not found: device not cleared
+  Aborting. Failed to wipe start of new LV.
+</code>
+FIXME **Reboot in rescue mode**
+
+
+====== Mkfs and fstab ======
+
+The last step is to create a file systeme for each of our logicalvolume and modify fstab in sort of mounting them at boot
+
+===== Mkfs =====
+
+==== Syntax ====
+
+The basic syntax of the command, which is common to all modern implementations, is:
+
+<code>
+$ mkfs -t <fs type> <device>
+</code>
+where 'fs type' is the type of the filesystem and 'device' is the target UNIX device to write the filesystem data to. Usually the "device" is a drive partition. Often the command is simply a wrapper for another command that performs the formatting for a specific file system. For example,
+In our case 
+<code>
+# mkfs -t ext4 /dev/vg5/lv5
+# mkfs -t ext4 /dev/vg6/lv6
+# mkfs -t ext4 /dev/vg7/lv7
+</code>
+
+===== Fstab =====
+
+First of all, we have to create the directories for our logical volume mount point
+<code> mkdir /{home5,home6,home7} </code> 
+
+Then, edit /etc/fstab 
+<code>
+#/etc/fstab
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+/dev/sda1       /       ext4    errors=remount-ro,relatime      0       1
+/dev/sda2       /home   ext4    defaults,relatime       1       2
+/dev/sda3       swap    swap    defaults        0       0
+proc            /proc   proc    defaults                0       0
+sysfs           /sys    sysfs   defaults                0       0
+devtmpfs        /dev    devtmpfs        rw      0       0
+
+
+#Mount of logical volume
+/dev/vg5/lv5    /home5  ext4    defaults        0       0
+/dev/vg6/lv6    /home6  ext4    defaults        0       0
+/dev/vg7/lv7    /home7  ext4    defaults        0       0
+
+</code>
+
+Then, mount all stuff from /etc/fstab
+<code>
+# mount -a
+
+# lsblk
+NAME               MAJ:MIN RM   SIZE RO TYPE MOUNTPOINT
+sda                  8:0    0   2.2T  0 disk 
+├─sda1               8:1    0  19.5G  0 part /
+├─sda2               8:2    0 302.2G  0 part /home
+├─sda3               8:3    0   511M  0 part [SWAP]
+├─sda4               8:4    0     1K  0 part 
+├─sda5               8:5    0 698.5G  0 part 
+│ └─vg5-lv5 (dm-2) 251:2    0 558.8G  0 lvm  /home5
+├─sda6               8:6    0 707.8G  0 part 
+│ └─vg6-lv6 (dm-1) 251:1    0 566.2G  0 lvm  /home6
+└─sda7               8:7    0 505.5G  0 part 
+  └─vg7-lv7 (dm-0) 251:0    0 404.4G  0 lvm  /home7
+
+</code>
+
+====== All Commands ======
+<code>
+##### R.A.I.D #####
+lspci | grep RAID
+MegaCli -EncInfo -aALL
+MegaCli -LDInfo -Lall -aALL
+MegaCli -PDlist -a0 | grep -e '^Enclosure Device ID:' -e '^Slot Number:'
+MegaCli -CfgLdDel -L0 -a0
+MegaCli -CfgSpanAdd -r50 -Array0[8:0,8:1,8:2,8:3,8:4,8:5,8:6,8:7,8:8,8:9,8:10,8:11] -Array1[9:1,9:2,9:3,9:4,9:5,9:6,9:7,9:8,9:9,9:10,9:11,9:12] -a0
+MegaCli -CfgLdAdd -r5 [8:0,8:1,8:2,8:3,8:4,8:5,8:6,8:7,8:8,8:9,8:10,8:11,9:1,9:2,9:3,9:4,9:5,9:6,9:7,9:8,9:9,9:10,9:11,9:12] -a0
+MegaCli -CfgLdAdd -r5 [252:0,252:1,252:2,252:3] -a0
+
+##### Partitioning #####
+parted
+(parted) mkpart extended 346GB 2399GB                                     
+(parted) mkpart logical 346GB 1096GB                                      
+(parted) mkpart logical 1096GB 1856GB                                     
+(parted) mkpart logical 1856GB 2399GB    
+
+
+##### Logical Volume Manager #####
+pvcreate /dev/sda5
+pvcreate /dev/sda6
+pvcreate /dev/sda7
+vgcreate vg5 /dev/sda5
+vgcreate vg6 /dev/sda6
+vgcreate vg7 /dev/sda7
+lvcreate --name lv5 --extents 80%FREE vg5
+lvcreate --name lv6 --extents 80%FREE vg6
+lvcreate --name lv7 --extents 80%FREE vg7
+
+
+##### File système & mouting#####
+mkfs -t ext4 /dev/vg5/lv5
+mkfs -t ext4 /dev/vg6/lv6
+mkfs -t ext4 /dev/vg7/lv7
+vim /etc/fstab
+mount -a
+
+</code>

@@ -18,20 +18,190 @@ $ which python
 </code>
 
 ===== PostgesSQL =====
+Install postgres db then run psql client
 
-apt-get install postgresql postgresql-client
+<code>
+apt-get install postgresql python-dev
+$su -l root
+#su - postgres
+#import schema
+psql  test < /var/lib/postgresql/schema.sql
+$psql -l
+
+ // Set password to PostgreSQL user postgres
+postgres=# \password postgres
+
+</code>
 
 
+----
+<code>
+From sratch :
 
+# create the user
+CREATE USER some_user WITH password 'pwd';
 
+# create the new db with the new user as owner
+CREATE DATABASE some_db WITH OWNER some_user;
+
+# connect to db
+connect some_db
+
+# create schema
+CREATE SCHEMA some_schema AUTHORIZATION some_user;
+
+# rename database
+ALTER DATABASE dbname RENAME TO new_dbname;
+</code>
 ===== Flask & SQLAlchemy=====
 
 <code>
-pip install Flask
-pip install SQLAlchemy
+pip install Flask SQLAlchemy Flask-SQLAlchemy 
+</code>
+
+psycopg2 is ....
+
+So the module need some c library installed with a global python . You need to insall python and python-setuptools
+
+<code>
+apt-get install python-setuptools
+pip install psycopg2 (venv)
 </code>
 
 
 
 
 
+==== db.py ====
+
+First we need to write the database connector. 
+In **db.py**
+<code>
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine('sqlite:////postgresql://postgres:postgres@localhost/postgres', echo=True)
+Base = declarative_base()
+Session = sessionmaker(bind=engine)
+</code>
+
+=== engine ===
+
+// Engine, Connection, and related objects. Its important to note that when using the SQLAlchemy ORM, these objects are not generally accessed; instead, the Session object is used as the interface to the database. However, for applications that are built around direct usage of textual SQL statements and/or SQL expression constructs without involvement by the ORM’s higher level management services, the Engine and Connection are king (and queen?)//
+
+
+echo parameter
+
+//echo=False – if True, the Engine will log all statements as well as a repr() of their parameter lists to the engines logger, which defaults to sys.stdout. The echo attribute of Engine can be modified at any time to turn logging on and off
+//
+=== Declarative base ===
+
+//LAlchemy object-relational configuration involves the combination of Table, mapper(), and class objects to define a mapped class. declarative allows all three to be expressed at once within the class declaration. As much as possible, regular SQLAlchemy schema and ORM constructs are used directly, so that configuration between “classical” ORM usage and declarative remain highly similar.//
+
+==== models.py ====
+
+Now let's build our vulnerability model 
+<code>
+
+from db import Base
+from sqlalchemy import event
+from sqlalchemy import Column, Float, String, Text
+from elasticsearch import Elasticsearch
+
+
+class Entry(Base):
+    __tablename__ = 'entries'
+    id = Column(Integer, primary_key=True)
+    cve_id = Column(String)
+    cvss_score = Column(Float)
+    version = Column(String)
+    description = Column(Text(length=500))
+    product_name = Column(String)
+
+def after_entry_insert(mapper, connection, target):
+    es = Elasticsearch()
+    es.index(index="vulnerability", doc_type="entry", id=target.id,body={"cve_id": target.cve_id, "cvss_score": target.cvss_score, "version": target.version, "description": target.description, "product_name": target.product_name})
+
+
+def after_entry_update(mapper, connection, target):
+    pass
+
+event.listen(Entry, 'after_insert', after_entry_insert)
+event.listen(Entry, 'after_update', after_entry_insert)
+</code>
+==== manage.py ====
+
+
+
+==== app.py ====
+Basic app.py with connection to postgresql server
+<code>
+from flask import Flask
+from flask.ext.sqlalchemy import SQLAlchemy
+
+sql = 'select * from vuln'
+result = db.engine.execute(sql)
+names = []
+for row in result:
+    names.append(row[1])
+
+print names
+
+
+@app.route('/')
+def hello_world():
+    return 'Hello World!'
+
+if __name__ == '__main__':
+    app.run()
+
+</code>
+ 
+
+
+----The entries route
+
+<code>
+@app.route('/api/entries', methods=["GET", "POST"])
+def list_entries():
+    if request.method == 'POST':
+        data = json.loads(request.data)
+        title = data.get('title')
+        content = data.get('content')
+
+        session = Session()
+        entry = Entry(title=title, content=content)
+        session.add(entry)
+        session.commit()
+
+        return 'ok'
+
+    else:
+        session = Session()
+        entries = session.query(Entry).all()
+        return Response(json.dumps(
+            [{"title": x.title, "content": x.content} for x in entries]),
+                        mimetype='application/json')
+</code>
+
+
+--------
+http://docs.sqlalchemy.org/en/rel_0_9/core/connections.html?highlight=engine#module-sqlalchemy.engine
+http://docs.sqlalchemy.org/en/rel_0_9/core/engines.html
+http://docs.sqlalchemy.org/en/rel_0_9/orm/extensions/declarative.html?highlight=declarative_base#sqlalchemy.ext.declarative.declarative_base
+===== Elastic search =====
+
+ElasticSearch est un moteur de recherche open source qui fait beaucoup parler de lui. Et pour cause, il possède un atout majeur : il suffit de quelques minutes à peine pour disposer d'un moteur de recherche clusterisé, automatiquement sauvegardé et répliqué, interrogeable via une API REST et proposant toutes les fonctionnalités d'un moteur de recherche dernière génération avec une prise en main rapide et une documentation officielle très complète.
+
+
+<code>
+pip install elasticsearch
+</code>
+
+
+
+test api 
+
+curl -H "Content-Type: application/json" -d '{"cve_id": "cve_id", "cvss_score": 7,5, "version": "2.0.4", "description": "entrie de test", "product_name": "product_name"}
+' http://localhost:5000/api/entries
